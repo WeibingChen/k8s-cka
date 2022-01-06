@@ -518,3 +518,100 @@ spec:
 ```
 
 > 增加了tolerations，反复试几次，发现pod只会调度到node01上
+
+### No:18
+- Create a Pod called `pod-jxc56fv`, using details metioned below:
+	1. securityContext: runAsUser:1000, fsGroup:2000
+	2. image=redis:alpine
+`cat challenge-18.yaml`
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: pod-jxc56fv
+  name: pod-jxc56fv
+spec:
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 2000
+  containers:
+  - image: redis:alpine
+    name: pod-jxc56fv
+```
+
+```shell
+$ k exec pod-jxc56fv -- whoami
+whoami: unknown uid 1000
+command terminated with exit code 1
+```
+
+### No:19
+- Worker Node "node01" not responding, have a look and fix the issue.
+
+```shell
+$ $ kg nodes
+NAME       STATUS     ROLES                  AGE   VERSION
+master01   Ready      control-plane,master   9d    v1.23.1
+node01     NotReady   <none>                 9d    v1.23.1
+
+# describe未发现异常
+$ kdesc node node01
+
+# 登录到node01上，查看kubelet的状态，发现kubelet的状态为stop
+node01 ] $ systemctl status kubelet
+Active: inactive (dead) since Thu 2022-01-06 20:59:16 CST; 3min 55s ago
+
+# 启动kubelet
+node01 ] $ systemctl start kubelet
+# 回到master01节点查看
+$ kg nodes
+NAME       STATUS   ROLES                  AGE   VERSION
+master01   Ready    control-plane,master   9d    v1.23.1
+node01     Ready    <none>                 9d    v1.23.1
+```
+> Tips: 自己实验需要提前把kubelet停掉
+
+### No:20
+- List the `InternalIp` of all nodes of the cluster. Save the result to a file `/root/Internal_IP_List`.
+- Answere should be int the format: InternalIP of First Node\<space\>InternalIP of SecondNode (in a single line)
+
+```shell
+$ kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}' >/root/Internal_IP_List
+```
+[cheat sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
+
+### No:21
+- One Static Pod `"web-static"`, image busybox, is currently running on controlpane node, move that static pod to run on node01, don't need to do any other changes.
+> Note: Static Pod name should be changed from web-static-controlplane to web-static-node01.
+
+首先找到manifest的路径
+```shell
+$ $ kg pod web-static-master01 -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+web-static-master01   1/1     Running   0          21s   10.244.0.6   master01   <none>           <none>
+
+
+# 从输出中找到---config的配置参数
+$ ps axu | grep /usr/bin/kubelet
+# 找到manifest的路径
+$ grep -i static /var/lib/kubelet/config.yaml
+staticPodPath: /etc/kubernetes/manifests
+# 找到web-static的yaml文件
+$ grep -i 'web-static' /etc/kubernetes/manifests/*
+/etc/kubernetes/manifests/challenge-21.yaml:    run: web-static
+/etc/kubernetes/manifests/challenge-21.yaml:  name: web-static
+/etc/kubernetes/manifests/challenge-21.yaml:    name: web-static
+# 将改文件挪到tmp目录
+$ mv /etc/kubernetes/manifests/challenge-21.yaml /tmp/.
+# 将/tmp/challenge-21.yaml拷贝到node01上一份，或者在node01直接编辑文件，内容相同
+$ scp /tmp/challenge-21.yaml node01:/etc/kubernetes/manifests/
+# 再次查看
+$ kg pod web-static-node01 -o wide
+NAME                READY   STATUS    RESTARTS   AGE   IP             NODE     NOMINATED NODE   READINESS GATES
+web-static-node01   1/1     Running   0          13s   10.244.2.126   node01   <none>           <none>
+```
+
+
+
+
