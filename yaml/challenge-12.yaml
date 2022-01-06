@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: finance-audit-pod
+  name: finance-audit-pod
+  namespace: finance
+spec:
+  containers:
+  - image: busybox
+    name: finance-audit-pod
+    command: ["sheep", "12000"]
+

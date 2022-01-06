@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    tire: web
+  name: web-load-5461
+spec:
+  containers:
+  - image: nginx:1.17
+    name: web-load-5461

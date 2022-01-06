@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: static-nginx
+  name: static-nginx
+spec:
+  containers:
+  - image: nginx:1.17
+    name: static-nginx
+  restartPolicy: Always

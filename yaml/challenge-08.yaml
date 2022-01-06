@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: pod-multi
+  name: pod-multi
+spec:
+  containers:
+  - image: nginx
+    name: container1
+  - image: busybox
+    name: container2
+    command: ["sleep", "4800"]
+
