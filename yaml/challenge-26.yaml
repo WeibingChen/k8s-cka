@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: multi-pod
+  name: multi-pod
+  namespace: developement
+spec:
+  containers:
+  - image: nginx
+    name: multi-nginx
+  - image: redis 
+    name: multi-redis
+

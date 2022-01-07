@@ -612,6 +612,292 @@ NAME                READY   STATUS    RESTARTS   AGE   IP             NODE     N
 web-static-node01   1/1     Running   0          13s   10.244.2.126   node01   <none>           <none>
 ```
 
+### No:22
+- A new user named `"alok"` need to be created. Grant him access to the cluster.
+- User `"alok"` should have permission to `create`, `list`, `get`, `update` and `delete` pods in the `space` namespace.
+- The private key exists at location: `/root/alok.key` and csr at `/root/alok.csr.`
+首先准备一下实验环境，生成私钥和证书CSR
+```shell
+# 生成CA证书私钥，密码123456
+$ openssl genrsa -des3 -out alok.key 2048
+# 生成CA证书
+$ openssl req -new subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=alok.com" -key alok.key -out alok.csr
+
+# 创建一个namespce 'space'
+$ k create namespace space
+```
+接下来进行实验，首先创建csr资源：
+
+```yaml
+kind: CertificateSigningRequest
+metadata:
+  name: alok
+spec:
+  request: <cat alok.csr | base64 | tr -d "\n">
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - client auth
+```
+
+```shell
+# 目前状态还是Pending
+$ kg csr
+NAME   AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
+alok   5s    kubernetes.io/kube-apiserver-client   kubernetes-admin   <none>              Pending
+# 测试一下能否访问space中的pods
+$ kg pod -n space --as alok
+Error from server (Forbidden): pods is forbidden: User "alok" cannot list resource "pods" in API group "" in the namespace "space"
+
+# 先对alok的csr请求通过
+$ k certificate approve alok
+# 状态变为Approved,Issued
+$ kg csr
+NAME   AGE     SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
+alok   3m41s   kubernetes.io/kube-apiserver-client   kubernetes-admin   <none>              Approved,Issued
+```
+
+接下来创建Role和RoleBinding
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: space
+  name: pod-reader
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["create", "get", "update" ,"delete", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: space
+  name: read-pods
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: User
+  name: alok
+  apiGroup: rbac.authorization.k8s.io
+```
+
+```shell
+$ kg role -n space
+NAME         CREATED AT
+pod-reader   2022-01-07T01:47:30Z
+$ kg rolebinding -n space
+NAME        ROLE              AGE
+read-pods   Role/pod-reader   45s
+```
+再次测试下：
+```shell
+$ kg pod -n space --as alok
+No resources found in space namespace.
+# 其他几个verb也可以试下
+$ k auth can-i get pods -n space --as alok
+yes
+```
+
+### No:23
+- Create a PersistentVolume, PersistentVolumeClaim and Pod with below specifications:
+- PV
+```shell
+=====
+Volume Name: mypvlog
+Storage: 100Mi
+Access Modes: ReadWriteMany
+Host Path: /pv/log
+Reclaim Policy: Retain
+```
+- PVC
+```shell
+=====
+Volume Name: pv-claim-log
+Storage Request: 50Mi
+Access Modes: ReadWriteMany
+```
+- Pod
+```shell
+=====
+Name: my-nginx-pod
+Image Name: nginx
+Volume: PersistentVolumeClaim=pv-claim-log
+Volume Mount: /log
+```
+
+### No:24
+- Worker Node "node01" not respnding, have a look and fix the issue.
+
+这题第二次出现，不过这次重启kubelet无效，需要继续排查
+```shell
+$  kg nodes
+NAME       STATUS     ROLES                  AGE   VERSION
+master01   Ready      control-plane,master   9d    v1.23.1
+node01     NotReady   <none>                 9d    v1.23.1
+```
+登录node01
+```shell
+$  systemctl status kubelet.service
+● kubelet.service - kubelet: The Kubernetes Node Agent
+   Loaded: loaded (/usr/lib/systemd/system/kubelet.service; enabled; vendor preset: disabled)
+  Drop-In: /usr/lib/systemd/system/kubelet.service.d
+           └─10-kubeadm.conf
+   Active: activating (auto-restart) (Result: exit-code) since Fri 2022-01-07 10:58:18 CST; 2s ago
+     Docs: https://kubernetes.io/docs/
+  Process: 2853 ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_CONFIG_ARGS $KUBELET_KUBEADM_ARGS $KUBELET_EXTRA_ARGS (code=exited, status=1/FAILURE)
+ Main PID: 2853 (code=exited, status=1/FAILURE)
+
+Jan 07 10:58:18 node01 systemd[1]: kubelet.service: main process exited, code=exited, status=1/FAILURE
+Jan 07 10:58:18 node01 systemd[1]: Unit kubelet.service entered failed state.
+Jan 07 10:58:18 node01 systemd[1]: kubelet.service failed.
+
+# 先重启写一下，发现没有作用
+```
+接下来查看一下日志
+```shell
+# 查看日志
+$ journalctl -u kubelet
+# 在日志中发下了如下的错误提示, ca文件路径不对
+Jan 07 11:00:52 node01 kubelet[3404]: E0107 11:00:52.296988    3404 server.go:279] "Failed to construct kubelet dependencies" err="unable to load client CA file /etc/kubernetes/pki/HEY_THERE_ARE_YOU_L..."
+
+# 下一步，看下kubelet的--config配置文件的内容 (额可以通过ps找到kubelet的启动参数)
+$ grep -C 5 HEY_THERE_ARE_YOU /var/lib/kubelet/config.yaml
+    enabled: true
+  x509:
+    clientCAFile: /etc/kubernetes/pki/HEY_THERE_ARE_YOU_LOOKING_FOR_ME.crt
+authorization:
+  mode: Webhook
+# 将这个路径改为/etc/kubernetes/pki/ca.crt, 然后重启
+$ kg pod
+NAME       STATUS   ROLES                  AGE   VERSION
+master01   Ready    control-plane,master   9d    v1.23.1
+node01     Ready    <none>                 9d    v1.23.1
+```
+
+实验环境准备：
+```shell
+修改node01上kubelet的--config文件，将clientCAFile对应的字段修改为：/etc/kubernetes/pki/HEY_THERE_ARE_YOU_LOOKING_FOR_ME.crt， 然后重启kubelet。
+```
+
+### No:25
+- A pod `"my-nginx-pod"` (`image=nginx`) in `custom` namespaces is not running. Find the problem and fix it and make it running.
+> Note: All the supported definition files has been placed at root.
+
+实验准备
+```shell
+# 创建custom namespace
+$ kc namespace custom
+```
+创建pod
+`cat challenge-25-pod.yaml`
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-nginx-pod
+  namespace: custom
+spec:
+  volumes:
+  - name: mypod
+    persistentVolumeClaim:
+      claimName: pv-claim-log
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - name: mypod
+      mountPath: /log
+```
+`cat challenge-25-pvc.yaml`
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-nginx-pod
+  namespace: custom
+spec:
+  volumes:
+  - name: mypod
+    persistentVolumeClaim:
+      claimName: pv-claim-log
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - name: mypod
+      mountPath: /log
+```
+下面开始分析问题：
+```shell
+$ kg pod -n custom
+NAME           READY   STATUS    RESTARTS   AGE
+my-nginx-pod   0/1     Pending   0          59m
+
+# kdesc显示有错误，缺少对应的pvc
+$ kdesc pod -n custom
+default-scheduler  0/3 nodes are available: 3 persistentvolumeclaim "pv-claim-log" not found.
+
+# 查看pvc及pv，发现有定义，但是在default名称空间，所以需要修正
+kg pvc -A
+NAMESPACE   NAME           STATUS   VOLUME    CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+default     pv-claim-log   Bound    mypvlog   100Mi      RWX                           113s
+
+# root下有对应pv和pvc的yaml文件，需要修改pvc的namespace，然后重新应用（删除之前的）
+```
+
+### No:26
+- Create a multi-container pod, `"multi-pod"` in `development` namespace using images: `nginx` and `redis`.
+`cat challenge-26.yaml`
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: multi-pod
+  name: multi-pod
+  namespace: development
+spec:
+  containers:
+  - image: nginx
+    name: multi-nginx
+  - image: redis
+    name: multi-redis
+```
+### No:27
+- A pod `"nginx-pod" (image=nginx)` in `default` namespace is not running.
+- Find the problem and fix it and make it running.
+
+实验环境准备：
+1. 给node打taint
+```shell
+$ k taint node node01 color=blue:NoSchedule
+$ k taint node node02 color=yellow:NoSchedule
+```
+2. 使用`challenge-27.yaml`创建资源
 
 
+接下来分析问题：
+```shell
+$ kg pod nginx-pod
+NAME        READY   STATUS    RESTARTS   AGE
+nginx-pod   0/1     Pending   0          2m25s
 
+# 看下描述，发现有如下类似的报错，没有可以调度的pod
+$ kdesc pod nginx-pod
+ 0/3 nodes are available: 1 node(s) had taint {color: blue}, that the pod didn't tolerate, 1 node(s) had taint {color: yellow}, that the pod didn't tolerate, 1 node(s) had taint {node-role.kubernetes.io/master: }, that the pod didn't tolerate.
+
+# 打个tolerations的patch
+$ k patch pod nginx-pod -p "$(cat ./challenge-27-patch.yaml)"
+```
+
+`cat challenge-27-patch.yaml`
+```yaml
+spec:
+  tolerations:
+  - key: "color"
+    operator: "Equal"
+    value: "blue"
+    effect: "NoSchedule"
+```
