@@ -1,15 +1,17 @@
-# CKA
-## Chanllenges
-### No:1
+# CKA Exam Questions
+来源：[Kubernetes CKA Exam Questions](https://www.youtube.com/playlist?list=PL6nVblW4NNAQrgSjhT8iK_v7ROIV2ikVu)
+
+### Challenge:1
 - Create a new pod called `amdin-pod` with image `busybox`.
 - Allow the pod to be able to `set system_time`
 - The container should `sleep for 3200 seconds`.
 
+<details><summary>show</summary>
+<p>
+
 ```shell
 $ kubectl run admin-pod --image=busybox --command sleep 3200 --dry-run=client -o yaml > challenge_01.yaml
 ```
-
-
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -28,12 +30,18 @@ spec:
       capabilities:
         add: ["SYS_TIME"]
 ```
+</details>
 
-### No:2
+### Challenge:2
 - A kubeconfig file called `test.kubeconfig` has been created in `/root/Test`.
 - There is something wrong with the configuration.
 - Toubelshoot and fix it.
-`/root/TEST/test.kubeconfig`
+
+
+<details><summary>show</summary>
+<p>
+
+`cat /root/TEST/test.kubeconfig`
 ```yaml
 apiVersion: v1
 clusters:
@@ -59,13 +67,25 @@ users:
 
 ```shell
 $ kubectl config view
+...
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://master01:6443
+...
 ```
-> 发现server端口错误
+> 发现server端口错误，正确端口应该是6443
 
-### No:3
+</details>
+
+### Challenge:3
 - Create a new `deployment` called `web-proj-268`, with image `nginx:1.16` and `1 replica`.
 - Next upgrade the deployment to `version 1.17` using rolling update.
 - Make sure that the version upgrade is recorded in the `resource annotation`.
+
+<details><summary>show</summary>
+<p>
+
 
 ```shell
 $ kubectl create deploy web-proj-268 --image=nginx:1.16 --replicas=1 -o yaml > challenge_03.yaml
@@ -105,15 +125,22 @@ spec:
 $ kubectl set image deployment web-proj-268 nginx=nginx:1.17 --record
 Flag --record has been deprecated, --record will be removed in the future
 ```
+</details>
 
-
-### No:4
-- Create a new deployment called web-003
-- Scale the deployment to 3 replicas
+### Challenge:4
+- Create a new deployment called `web-003`
+- Scale the deployment to `3 replicas`
 - Make sure desired number of pod always running
 
-这道题考的目的不是创建deployment，而是诊断集群错误！
-但是我们按着题目要求，创建一个Deployment，镜像使用nginx:latest, replicas为3
+<details><summary>实验准备</summary>
+<p>
+
+这道题考的目的不是创建deployment，而是诊断集群错误！首先需要破坏一下集群，编辑`/etc/kubernetes/manifest/kube-controller-manager.yaml`, 将`kube-controller-manager`改为`kube-controller-man`，然后重启一下kubelet。 
+</details>
+
+<details><summary>show</summary>
+<p>
+按着题目要求，创建一个Deployment，镜像使用nginx:latest, replicas为3
 
 ```yaml
 apiVersion: apps/v1
@@ -137,13 +164,13 @@ spec:
         name: nginx
 ```
 
-首先检查deploy，这是创建成功的，但是pod没有创建。
+首先检查deploy，这是创建成功的，但是显示pod没有创建成功。</br>
 ```shell
 $ kg deploy
 NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
 web-003                  0/3     0            0           10s
 ```
-检查下集群状态，显示controller-manager的状态为`Unhealthy`
+检查下集群状态，显示controller-manager的状态为`Unhealthy`</br>
 ```shell
 $ kg cs
 Warning: v1 ComponentStatus is deprecated in v1.19+
@@ -152,16 +179,24 @@ controller-manager   Unhealthy   Get "https://127.0.0.1:10257/healthz": dial tcp
 scheduler            Healthy     ok
 etcd-0               Healthy     {"health":"true","reason":""}
 ```
-查看logs，没有输出
-检查一下pod events，显示`kube-controller-man`命令没有找到，这个命令的名称是不对的，正确的是`kube-controller-manager`，需要更正一下：
+查看pod logs，没有错误信息</br>
+检查一下pod events，显示`kube-controller-man`命令没有找到，
 ```shell
 starting container process caused: exec: "kube-controller-man": executable file not found in $PATH: unknown
 ```
+这个命令的名称是不对的，正确的是`kube-controller-manager`，需要更正一下：
 找到`/etc/kubernetes/manifest/kube-controller-manager.yaml`将命令改为正确的，然后重启下kubelet。等待一下再次观察pod是否创建好了。
 
-### No:5 
-- Upgrade the Cluster (Master and worker Node) from 1.18.0 to 1.19.0.
-- Make sure first drain both Node and make it available after upgrade.
+</details>
+
+### Challenge:5 
+- Upgrade the Cluster (`Master` and `worker` Node) from `1.18.0` to `1.19.0`.
+- Make sure first `drain` both Node and make it available after upgrade.
+
+
+<details><summary>show</summary>
+<p>
+
 查看版本
 ```shell
 $ kg nodes
@@ -187,9 +222,14 @@ $ k uncordon master01
 ```
 
 > 在node01上也执行一遍
+</details>
 
-### No:6
-Deploy a `web-load-5461` pod using the `nginx:1.17` image with the labels set to `tier=web`
+### Challenge:6
+- Deploy a `web-load-5461` pod using the `nginx:1.17` image with the labels set to `tier=web`
+
+
+<details><summary>show</summary>
+<p>
 
 ```shell
 $ k run web-load-5461 --image=nginx:1.17 --labels tire=web
@@ -197,9 +237,15 @@ $ kg pod web-load-5461 --show-labels
 NAME            READY   STATUS    RESTARTS   AGE   LABELS
 web-load-5461   1/1     Running   0          12s   tire=web
 ```
+</details>
 
-### No:7
+### Challenge:7
 - Create a `static pod` on `node01` called `static-nginx` with image `nginx` and you have to make sure that it is `recreated/restarted automatically` in case of any failure happens.
+
+
+<details><summary>show</summary>
+<p>
+
 首先在node01上找到config的位置, 
 ```shell
 $ ps uax | grep kubelet
@@ -212,18 +258,30 @@ staticPodPath: /etc/kubernetes/manifests
 ```
 在/etc/kubernetes/manifests里面创建yaml文件，kubelet会自动把pod拉起。
 
-### No:8
+</details>
+
+### Challenge:8
 - Create a pod called `pod-multi` with two containers, description mentioned below:
 	- Container 1 => name: `container1`i image: `nginx`
 	- Container 2 => name: `container2`, image: `busybox`, command sleep 4800
+
+
+<details><summary>show</summary>
+<p>
 
 ```
 $ 
 ```
 
-### No:9
+</details>
+
+### Challenge:9
 - Create a pod called `delta-pod` in `defense` namespace belonging to the development environment (`env=dev`) and frontend tier(`tier=front`).
 - image: nginx:1.17
+
+
+<details><summary>show</summary>
+<p>
 
 ```shell
 $ k create namespace defense
@@ -233,17 +291,25 @@ $ kg pod -n defense --show-labels
 NAME        READY   STATUS    RESTARTS   AGE   LABELS
 delta-pod   1/1     Running   0          23s   env=dev,tier=front
 ```
+</details>
 
-### No:10
+### Challenge:10
 Get the node `node01` in `JSON` format and store it in a file at `/opt/outputs/nodes-fz456723je.json`
+
+
+<details><summary>show</summary>
+<p>
 
 ```shell
 $ kg node node01 -o json > /opt/outputs/nodes-fz456723je.json
 ```
+</details>
 
+### Challenge:11
+- Take a backup of the `ETCD database` and save it to root with name of back `etcd-backup.db`
 
-### No:11
-Take a backup of the `ETCD database` and save it to root with name of back `etcd-backup.db`
+<details><summary>show</summary>
+<p>
 
 ```shell
 $ kg pod -n kube-system etcd-master01
@@ -262,14 +328,24 @@ ETCDCTL_API=3 etcdctl \
 --key=/etc/kubernetes/pki/etcd/server.key \
 snapshot save /root/etcd-backup.db
 ```
+</details>
 
-### No:12
+### Challenge:12
 - A new application `finance-audit-pod` is deployed in `finance` namespace.
 - There is something wrong with it. Identify and fix the issue.
 
 > Note: No configuration changed allowed, you can only delete and recreate the pod (if requed)
 
+<details><summary>准备实验</summary>
+<p>
+
 使用`challeng-12.yaml`创建pod，等待一段时间后，会显示CrashLoopback状态，接下来分析一下。
+
+</details>
+
+<details><summary>show</summary>
+<p>
+
 
 ```shell
 $ kg pod -n finance
@@ -303,19 +379,23 @@ warning: Immediate deletion does not wait for confirmation that the running reso
 pod "finance-audit-pod" force deleted
 
 $ ka -f /tmp/finance-audit-pod.yaml
-
 ```
+</details>
 
-### No:13
+### Challenge:13
 - Create a pod called `web-pod` using image `nginx`, expose it internally with a service called `web-pod-svc`.
 - Check that you are able to look up the service and pod from within the cluster.
 	- Use the image: `busybox:1.28` for dns lookup.
 	- Record results in `/root/web-svc.svc` and `/root/web-pod.pod`
 
+
+<details><summary>show</summary>
+<p>
+
 ```shell
 $ k run web-pod --image=nginx --dry-run=client -o yaml > challenge-13.yaml
 
-# 编辑challenge-13.yaml，增加Service定义
+# 编辑challenge-13.yaml，增加Service定义 
 ```
 
 `cat challenge-13.yaml`
@@ -384,21 +464,32 @@ $ k exec nslookup -- nslookup web-pod-svc > /root/web-svc.svc
 $ k exec nslookup -- nslookup 10-244-2-114.default.pod > /root/web-pod.pod
 ```
 
-### No:14
+</details>
+
+### Challenge:14
 - Use `JSON PATH` query to retrieve the `osImages` of all the nodes and store it in a file `"allNodes_osImage_45CVB34Ji.txt"` at `root location`.
 > Note: The `osImages` are under the `nodeInfo` section under status of each `node`.
+
+
+<details><summary>show</summary>
+<p>
 
 ```shell
 $ kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.osImage}' > /root/allNodes_osImage_45CVB34Ji.txt
 ```
+</details>
 
-### No:15
+### Challenge:15
 - Create a `PersistentVolume` with the given specification.
 	- Volume Name: `pv-rnd`
 	- Storage: `100Mi`
 	- Access modes: `ReadWriteMany`
 	- Host Path: `/pv/host_data-rnd`
 	
+
+<details><summary>show</summary>
+<p>
+
 `cat challenge-15.yaml`
 ```yaml
 apiVersion: v1
@@ -435,10 +526,15 @@ Source:
     HostPathType:
 Events:            <none>
 ```
+</details>
 
-### No:16
+### Challenge:16
 - Expose the "audit-web-app" web pod as service "audit-web-app-service" application on port 30002 on the nodes on the cluster.
 > Note: The web application listens on port 80
+
+
+<details><summary>show</summary>
+<p>
 
 通过`challenge-16-pre.yaml`创建`audit-web-app`
 
@@ -464,15 +560,17 @@ spec:
     nodePort: 30002
   type: NodePort
 ```
+</details>
 
-
-### No:17
+### Challenge:17
 - Taint the worker node `node01` with details provide below. Create a pod called `dev-pod-nginx` using `image=nginx`, make sure that workloads are not scheduled to this worker node(`node01`)
 - Create a another pod called `prod-pod-nginx` using `image=nginx` with toleration to be scheduled on `node01`.
 
 Details:
- key: env_type value: production, operator Equal and effect: NoSchedule
- 
+ key: `env_type` value: `production`, operator `Equal` and effect: `NoSchedule`
+
+<details><summary>实验准备</summary>
+<p>
  先给node01打taint
  ```shell
  $ kdesc node node01 | grep -i taint
@@ -481,7 +579,12 @@ Taints:             <none>
  $ kdesc node node01 | grep -i taint
 Taints:             env_type=production:NoSchedule
  ```
- 
+ </details>
+
+<details><summary>show</summary>
+<p>
+
+
  `cat challenge-17-dev.yaml`
  ```yaml
  apiVersion: v1
@@ -495,7 +598,7 @@ spec:
   - image: nginx
     name: dev-pod-nginx
  ```
- 
+
 > 删除创建反复几次，发现pod都不会调度到node01上
 
 `cat challenge-17-prod.yaml`
@@ -519,10 +622,17 @@ spec:
 
 > 增加了tolerations，反复试几次，发现pod只会调度到node01上
 
-### No:18
+</details>
+
+### Challenge:18
 - Create a Pod called `pod-jxc56fv`, using details metioned below:
 	1. securityContext: runAsUser:1000, fsGroup:2000
 	2. image=redis:alpine
+
+
+<details><summary>show</summary>
+<p>
+
 `cat challenge-18.yaml`
 ```yaml
 apiVersion: v1
@@ -546,8 +656,18 @@ whoami: unknown uid 1000
 command terminated with exit code 1
 ```
 
-### No:19
+</details>
+
+### Challenge:19
 - Worker Node "node01" not responding, have a look and fix the issue.
+<details><summary>实验准备</summary>
+<p>
+
+登录到node01节点， 提前把kubelet停掉`systemctl stop kubelet`
+</details>
+<details><summary>show</summary>
+<p>
+
 
 ```shell
 $ $ kg nodes
@@ -570,20 +690,31 @@ NAME       STATUS   ROLES                  AGE   VERSION
 master01   Ready    control-plane,master   9d    v1.23.1
 node01     Ready    <none>                 9d    v1.23.1
 ```
-> Tips: 自己实验需要提前把kubelet停掉
 
-### No:20
+
+</details>
+
+### Challenge:20
 - List the `InternalIp` of all nodes of the cluster. Save the result to a file `/root/Internal_IP_List`.
 - Answere should be int the format: InternalIP of First Node\<space\>InternalIP of SecondNode (in a single line)
+
+<details><summary>show</summary>
+<p>
 
 ```shell
 $ kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}' >/root/Internal_IP_List
 ```
 [cheat sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
 
-### No:21
+</details>
+
+### Challenge:21
 - One Static Pod `"web-static"`, image busybox, is currently running on controlpane node, move that static pod to run on node01, don't need to do any other changes.
 > Note: Static Pod name should be changed from web-static-controlplane to web-static-node01.
+
+
+<details><summary>show</summary>
+<p>
 
 首先找到manifest的路径
 ```shell
@@ -611,23 +742,33 @@ $ kg pod web-static-node01 -o wide
 NAME                READY   STATUS    RESTARTS   AGE   IP             NODE     NOMINATED NODE   READINESS GATES
 web-static-node01   1/1     Running   0          13s   10.244.2.126   node01   <none>           <none>
 ```
+</details>
 
-### No:22
+### Challenge:22
 - A new user named `"alok"` need to be created. Grant him access to the cluster.
 - User `"alok"` should have permission to `create`, `list`, `get`, `update` and `delete` pods in the `space` namespace.
 - The private key exists at location: `/root/alok.key` and csr at `/root/alok.csr.`
+
+
+<details><summary>准备环境</summary>
+<p>
 首先准备一下实验环境，生成私钥和证书CSR
+
 ```shell
 # 生成CA证书私钥，密码123456
 $ openssl genrsa -des3 -out alok.key 2048
 # 生成CA证书
 $ openssl req -new subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=alok.com" -key alok.key -out alok.csr
-
 # 创建一个namespce 'space'
 $ k create namespace space
 ```
-接下来进行实验，首先创建csr资源：
 
+</details>
+
+<details><summary>show</summary>
+<p>
+
+接下来进行实验，首先创建csr资源：
 ```yaml
 kind: CertificateSigningRequest
 metadata:
@@ -700,7 +841,9 @@ $ k auth can-i get pods -n space --as alok
 yes
 ```
 
-### No:23
+</details>
+
+### Challenge:23
 - Create a PersistentVolume, PersistentVolumeClaim and Pod with below specifications:
 - PV
 ```shell
@@ -726,9 +869,26 @@ Image Name: nginx
 Volume: PersistentVolumeClaim=pv-claim-log
 Volume Mount: /log
 ```
+<details><summary>show</summary>
+<p>
 
-### No:24
+`cat challenge-23.yaml`
+
+</details>
+
+### Challenge:24
 - Worker Node "node01" not respnding, have a look and fix the issue.
+
+<details><summary>实验环境准备</summary>
+<p>
+
+```shell
+修改node01上kubelet的--config文件，将clientCAFile对应的字段修改为：/etc/kubernetes/pki/HEY_THERE_ARE_YOU_LOOKING_FOR_ME.crt， 然后重启kubelet。
+```
+</details>
+
+<details><summary>show</summary>
+<p>
 
 这题第二次出现，不过这次重启kubelet无效，需要继续排查
 ```shell
@@ -776,16 +936,16 @@ master01   Ready    control-plane,master   9d    v1.23.1
 node01     Ready    <none>                 9d    v1.23.1
 ```
 
-实验环境准备：
-```shell
-修改node01上kubelet的--config文件，将clientCAFile对应的字段修改为：/etc/kubernetes/pki/HEY_THERE_ARE_YOU_LOOKING_FOR_ME.crt， 然后重启kubelet。
-```
+</details>
 
-### No:25
+### Challenge:25
 - A pod `"my-nginx-pod"` (`image=nginx`) in `custom` namespaces is not running. Find the problem and fix it and make it running.
 > Note: All the supported definition files has been placed at root.
 
-实验准备
+
+<details><summary>实验准备</summary>
+<p>
+
 ```shell
 # 创建custom namespace
 $ kc namespace custom
@@ -829,6 +989,11 @@ spec:
     - name: mypod
       mountPath: /log
 ```
+</details>
+
+<details><summary>show</summary>
+<p>
+
 下面开始分析问题：
 ```shell
 $ kg pod -n custom
@@ -846,9 +1011,14 @@ default     pv-claim-log   Bound    mypvlog   100Mi      RWX                    
 
 # root下有对应pv和pvc的yaml文件，需要修改pvc的namespace，然后重新应用（删除之前的）
 ```
+</details>
 
-### No:26
+### Challenge:26
 - Create a multi-container pod, `"multi-pod"` in `development` namespace using images: `nginx` and `redis`.
+
+<details><summary>show</summary>
+<p>
+
 `cat challenge-26.yaml`
 ```yaml
 apiVersion: v1
@@ -865,11 +1035,15 @@ spec:
   - image: redis
     name: multi-redis
 ```
-### No:27
+</details>
+
+### Challenge:27
 - A pod `"nginx-pod" (image=nginx)` in `default` namespace is not running.
 - Find the problem and fix it and make it running.
 
-实验环境准备：
+<details><summary>实验环境准备</summary>
+<p>
+
 1. 给node打taint
 ```shell
 $ k taint node node01 color=blue:NoSchedule
@@ -877,6 +1051,9 @@ $ k taint node node02 color=yellow:NoSchedule
 ```
 2. 使用`challenge-27.yaml`创建资源
 
+</details>
+<details><summary>show</summary>
+<p>
 
 接下来分析问题：
 ```shell
@@ -901,3 +1078,4 @@ spec:
     value: "blue"
     effect: "NoSchedule"
 ```
+</details>
