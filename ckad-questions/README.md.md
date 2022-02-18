@@ -1,0 +1,1 @@
+原文来自[Practice Enough With These 150 Questions for the CKAD Exam](https://medium.com/bb-tutorials-and-thoughts/practice-enough-with-these-questions-for-the-ckad-exam-2f42d1228552)这里只做了一些格式化

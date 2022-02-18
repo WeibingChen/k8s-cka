@@ -1,2 +1,2 @@
-# k8s-cka
-challenges of k8s CKA
+# k8s
+CKAD、CKA and CKS相关测试题。
