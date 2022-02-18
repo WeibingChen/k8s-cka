@@ -8,19 +8,19 @@
 
 - **[Multi-Container Pods (10%)](#2)**
 
-- **Pod Design (20%)**
+- **[Pod Design (20%)](#3)**
 
-- **State Persistence (8%)**
+- **[State Persistence (8%)](#4)**
 
-- **Configuration (18%)**
+- **[Configuration (18%)](#5)**
 
-- **Observability (18%)**
+- **[Observability (18%)](#6)**
 
-- **Services and Networking (13%)**
+- **[Services and Networking (13%)](#7)**
 
   
 
-## Core Concepts (13%)<div id="1">1</div>
+## Core Concepts (13%)<div id="1"></div>
  Practice questions based on these concepts
 * Understand Kubernetes API Primitives
 * Create and Configure Basic Pods
@@ -35,6 +35,7 @@ kubectl get ns
 
 </p>
 </details>
+
 ### 2. List all the pods in all namespaces
 <details><summary>show</summary>
 <p>
@@ -47,6 +48,7 @@ kubectl get po -A
 
 </p>
 </details>
+
 ### 3. List all the pods in the particular namespace
 <details><summary>show</summary>
 <p>
@@ -58,6 +60,7 @@ kubectl get po -n foo
 
 </p>
 </details>
+
 ### 4. List all the services in the particular namespace
 <details><summary>show</summary>
 <p>
@@ -71,6 +74,7 @@ kubectl get svc -n foo
 
 </p>
 </details>
+
 ### 5. List all the pods showing name and namespace with a json path expression
 <details><summary>show</summary>
 <p>
@@ -85,6 +89,7 @@ kubectl get pods -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata
 
 </p>
 </details>
+
 ### 6. Create an nginx pod in a default namespace and verify the pod running
 <details><summary>show</summary>
 <p>
@@ -98,6 +103,7 @@ kubectl get po
 
 </p>
 </details>
+
 ### 7. Create the same nginx pod with a yaml file
 <details><summary>show</summary>
 <p>
@@ -526,7 +532,7 @@ kubectl exec -it  multi-cont-pod -c sidecar-container -- sh
 </details>
 
 
-## Pod Design (20%)
+## Pod Design (20%)<div id="3"></div>
 Practice questions based on these concepts
 
 * Understand how to use Labels, Selectors and Annotations
@@ -1340,7 +1346,7 @@ kubectl get job
 </p>
 </details>
 
-## State Persistence (8%)
+## State Persistence (8%)<div id="4"></div>
 Practice questions based on these concepts
 * Understand PersistentVolumeClaims for Storage
 
@@ -1477,7 +1483,7 @@ kubectl create -f task-pv-pod.yaml
 
 [task-pv-pod.yaml](./yaml/task-pv-pod.yaml)
 
-## Configuration (18%)
+## Configuration (18%)<div id="5"></div>
 Practice questions based on these concepts
 * Understand ConfigMaps
 * Understand SecurityContexts
@@ -1931,7 +1937,7 @@ kubectl describe po busybox
 
 [busybox3.yml](./yaml/busybox3.yml)
 
-## Observability (18%)
+## Observability (18%)<div id="6"></div>
 Practice questions based on these concepts
 * Understand LivenessProbes and ReadinessProbes
 * Understand Container Logging
@@ -2151,7 +2157,7 @@ cat cpu-usage.txt
 
 > 前提安装了metrics插件 [metrics-server](https://github.com/kubernetes-sigs/metrics-server)
 
-## Services and Networking (13%)
+## Services and Networking (13%)<div id="7"></div>
 Practice questions based on these concepts
 * Understand Services
 * Demonstrate a basic understanding of NetworkPolicies
